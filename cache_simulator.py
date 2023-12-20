@@ -61,7 +61,7 @@ def main():
         return
 
     # Inicializa os vetores de valores e tags da cache com o tamanho da associatividade vezes o número de conjuntos
-    cache_value = [0] * (att.assoc * att.nsets)
+    cache_val = [0] * (att.assoc * att.nsets)
     cache_tag = [0] * (att.assoc * att.nsets)
 
     # Calcula o número de bits de offset, index e tag
@@ -82,46 +82,84 @@ def main():
 
     # Itera sobre os dados do arquivo de entrada
     for i in range(0, data.size):   
-        # Se for um endereço de memória ímpar, é um dado, se não vai ser um 0, foi a forma que achei de funcionar hehe
 
+        # Se for um endereço de memória ímpar, é um dado, se não vai ser um 0, foi a forma que achei de funcionar hehe
         if i % 2 != 0:
-            print(data[i])
+            # print(data[i])
 
             # Calcula o tag e o index do endereço de memória
             tag = data[i] >> (offset_bits + index_bits)
             index = (data[i] >> offset_bits) & ((1 << index_bits) - 1)
 
-            print(f"Tag: {tag}")
-            print(f"Index: {index}")
-
             # Vê onde vai ser colocado o dado na cache
-            cache_value, cache_tag = cache_placement(data[i], index, tag, cache_value, cache_tag)
+            cache_val, cache_tag = cache_placement(index, tag, cache_val, cache_tag)
             att.addCounter()
+
 
     print(f"Counter: {att.counter}")
 
-def cache_placement(data, index, tag, cache_value, cache_tag):
+def cache_placement(index, tag, cache_val, cache_tag):
 
-    # Se for mapeamento direto, só precisa ver se o valor na cache é 0 ou 1
-    if cache_value[index] == 0:
+    # Por mapeamento direto
+    if att.assoc == 1:
 
-        misses.addCompulsory()
-        cache_value[index] = data
-        cache_tag[index] = tag
-
-    else:
-        if cache_tag[index] == tag:
-            att.addHits()
-            print(f"HITS = {att.hits}")
-        else:
-            misses.addConflict()
+        if cache_val[index] == 0:
+            misses.addCompulsory()
+            cache_val[index] = 1
             cache_tag[index] = tag
 
-    return cache_value, cache_tag
+        else:
+            if cache_tag[index] == tag:
+                att.addHits()
+                print(f"HITS = {att.hits}")
+            else:
+                misses.addConflict()
+                cache_tag[index] = tag
+
+    # Por mapeamento associativo
+    if att.assoc != 1 and att.nsets != 1:
+
+            for i in range(index * att.assoc, (index + 1) * att.assoc):
+                if cache_val[i] == 0:
+                    misses.addCompulsory()
+                    cache_val[i] = 1
+                    cache_tag[i] = tag
+                    return cache_val, cache_tag
+
+            misses.addConflict()
+            random = rd.randint(index * att.assoc, (index + 1) * att.assoc - 1)
+            cache_tag[random] = tag
+
+    # Por mapeamento totalmente associativo
+    if att.nsets == 1:
+
+        comp_flag = 0
+
+        match att.sub:
+            case 'R':
+                for entry in cache_tag:
+                    if entry == tag:
+                        att.addHits()
+
+                        return cache_val, cache_tag
+                    
+                    if entry == 0:
+                        comp_flag = 1
+                    
+                if comp_flag == 1:
+                    misses.addCompulsory()
+
+                else:
+                    misses.addCapacity()
+
+                random = rd.randint(0, att.assoc - 1)
+                cache_tag[random] = tag
+                cache_val[random] = 1
+        
+    return cache_val, cache_tag
 
 
 if __name__ == "__main__":
     main()
 
-    print(f"{att.counter} {att.hits/att.counter:.2f} {misses.total/att.counter:.2f} {misses.compulsory/misses.total:.2f} {misses.capacity/misses.total:.2f} {misses.conflict/misses.total:.2f}")
-    
+    print(f"{att.counter} {att.hits/att.counter:.4f} {misses.total/att.counter:.4f} {misses.compulsory/misses.total:.4f} {misses.capacity/misses.total:.4f} {misses.conflict/misses.total:.4f}")
