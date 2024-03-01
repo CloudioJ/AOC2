@@ -70,16 +70,16 @@ def main():
     index_bits = int(np.log2(att.nsets))
     tag_bits = 32 - offset_bits - index_bits
 
-    print(offset_bits)  
-    print(index_bits)
-    print(tag_bits)
+    # print(offset_bits)  
+    # print(index_bits)
+    # print(tag_bits)
 
     # Abre o arquivo de entrada e lê os dados em formato big endian
     file = open(att.file, "rb")
     data = np.fromfile(file, dtype=">u2")
     
-    print(data.size)
-    print(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7])
+    # print(data.size)
+    # print(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7])
 
     # Itera sobre os dados do arquivo de entrada
     for i in range(0, data.size):   
@@ -97,24 +97,31 @@ def main():
             att.addCounter()
 
 
-    print(f"Counter: {att.counter}")
+    # print(f"Counter: {att.counter}")
 
 def cache_placement(index, tag, cache_val, cache_tag):
 
+    # Flag serve para não colocar o mesmo dado na cache mais de uma vez
     flag = 0
 
+    # Itera baseado no numero de associatividade
     for i in range(att.assoc):
+        # Para cada item checa para se esta vazio e faz um miss compulsório, adicionando o dado
         if cache_val[index][i] == 0 and flag == 0:
             misses.addCompulsory()
             cache_val[index][i] = 1
             cache_tag[index][i] = tag
             flag = 1
+        
+        # Se ja existir o dado então é hit, transformando o flag em 1 pra ele não passar no resto do código
         else:
             if cache_tag[index][i] == tag and flag != 1:
                 att.addHits()
                 flag = 1
         
+    # Se não tiver sido hit e também não foi um miss compulsório então foi miss de conflito ou de capacidade
     if flag == 0:
+        # Checa toda a cache pra ver se esta cheia
         for k in range(att.nsets):
             for j in range(att.assoc):
                 if cache_val[k][j] == 0:
@@ -122,7 +129,7 @@ def cache_placement(index, tag, cache_val, cache_tag):
                 else:
                     full = 1
 
-
+        # Se ela estiver realmente cheia então é um miss de capacidadem senão é um miss de conflito
         if full == 1 and att.sub == 'R':
             misses.addCapacity()
             aux = rd.randint(0, 10) % att.assoc
@@ -138,4 +145,4 @@ def cache_placement(index, tag, cache_val, cache_tag):
 if __name__ == "__main__":
     main()
 
-    print(f"{att.counter} {att.hits/att.counter:.4f} {misses.total/att.counter:.4f} {misses.compulsory/misses.total:.4f} {misses.capacity/misses.total:.4f} {misses.conflict/misses.total:.4f}")
+    print(f"{att.counter} {att.hits/att.counter:.4f} {misses.total/att.counter:.4f} {misses.compulsory/misses.total:.2f} {misses.capacity/misses.total:.2f} {misses.conflict/misses.total:.2f}")
