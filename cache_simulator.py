@@ -52,6 +52,7 @@ class Misses:
 
 # Cria um objeto da classe Misses
 misses = Misses()
+full = 0
 
 def main():
 
@@ -61,8 +62,8 @@ def main():
         return
 
     # Inicializa os vetores de valores e tags da cache com o tamanho da associatividade vezes o número de conjuntos
-    cache_val = [0] * (att.assoc * att.nsets)
-    cache_tag = [0] * (att.assoc * att.nsets)
+    cache_val = [[0] * att.assoc for _ in range(att.nsets)]
+    cache_tag = [[0] * att.assoc for _ in range(att.nsets)]
 
     # Calcula o número de bits de offset, index e tag
     offset_bits = int(np.log2(att.bsize))
@@ -100,62 +101,37 @@ def main():
 
 def cache_placement(index, tag, cache_val, cache_tag):
 
-    # Por mapeamento direto
-    if att.assoc == 1:
+    flag = 0
 
-        if cache_val[index] == 0:
+    for i in range(att.assoc):
+        if cache_val[index][i] == 0 and flag == 0:
             misses.addCompulsory()
-            cache_val[index] = 1
-            cache_tag[index] = tag
-
+            cache_val[index][i] = 1
+            cache_tag[index][i] = tag
+            flag = 1
         else:
-            if cache_tag[index] == tag:
+            if cache_tag[index][i] == tag and flag != 1:
                 att.addHits()
-                print(f"HITS = {att.hits}")
-            else:
-                misses.addConflict()
-                cache_tag[index] = tag
-
-    # Por mapeamento associativo
-    if att.assoc != 1 and att.nsets != 1:
-
-            for i in range(index * att.assoc, (index + 1) * att.assoc):
-                if cache_val[i] == 0:
-                    misses.addCompulsory()
-                    cache_val[i] = 1
-                    cache_tag[i] = tag
-                    return cache_val, cache_tag
-
-            misses.addConflict()
-            random = rd.randint(index * att.assoc, (index + 1) * att.assoc - 1)
-            cache_tag[random] = tag
-
-    # Por mapeamento totalmente associativo
-    if att.nsets == 1:
-
-        comp_flag = 0
-
-        match att.sub:
-            case 'R':
-                for entry in cache_tag:
-                    if entry == tag:
-                        att.addHits()
-
-                        return cache_val, cache_tag
-                    
-                    if entry == 0:
-                        comp_flag = 1
-                    
-                if comp_flag == 1:
-                    misses.addCompulsory()
-
-                else:
-                    misses.addCapacity()
-
-                random = rd.randint(0, att.assoc - 1)
-                cache_tag[random] = tag
-                cache_val[random] = 1
+                flag = 1
         
+    if flag == 0:
+        for k in range(att.nsets):
+            for j in range(att.assoc):
+                if cache_val[k][j] == 0:
+                    full = 0
+                else:
+                    full = 1
+
+
+        if full == 1 and att.sub == 'R':
+            misses.addCapacity()
+            aux = rd.randint(0, 10) % att.assoc
+            cache_tag[index][aux] = tag
+        elif full == 0 and att.sub == 'R':
+            misses.addConflict() 
+            aux = rd.randint(0, 10) % att.assoc
+            cache_tag[index][aux] = tag
+
     return cache_val, cache_tag
 
 
